@@ -1,16 +1,34 @@
 package de.embl.cmci.xml;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import java.util.*;
-
 import jama.EigenvalueDecomposition;
 import jama.Matrix;
 
+import java.awt.Button;
+import java.awt.Choice;
+import java.awt.FileDialog;
+import java.awt.FlowLayout;
+import java.awt.Frame;
+import java.awt.Label;
+import java.awt.TextArea;
+import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Vector;
+
+import org.rosuda.REngine.RList;
+import org.rosuda.REngine.Rserve.RConnection;
+import org.rosuda.REngine.Rserve.RserveException;
+import org.rosuda.REngine.REXPMismatchException;
+import org.rosuda.REngine.REngineException;
 //import org.rosuda.JRclient.*;
-import org.rosuda.REngine;
-import org.rosuda.REngine.Rserve;
 
 public class KTAnalyzerDistribute extends WindowAdapter implements ActionListener{
 	Frame frm = new Frame("KTAnalyzer");
@@ -932,7 +950,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 	}
 
 	//use R, get spline smoothing
-	static double[] getSpline (double x[], double[] y, int nTime, Rconnection re){
+	static double[] getSpline (double x[], double[] y, int nTime, RConnection re){
 		int t;
 		int emptySlot=0;
 		double[] latyComp = new double[nTime];
@@ -986,7 +1004,6 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 
 			try{
-
 				re.assign("t", tStampsOfKTt);
 				re.assign("xpos", regPosOfKTt);
 				re.assign("predictAt", x);
@@ -994,8 +1011,10 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 				l = re.eval("predict(smooth.spline(x=t,y=xpos), x=predictAt)").asList();
 
 
-				double[] latx = l.at("x").asDoubleArray();
-				double[] laty = l.at("y").asDoubleArray();
+				//double[] latx = l.at("x").asDoubleArray();
+				//double[] laty = l.at("y").asDoubleArray();
+				double[] latx = l.at("x").asDoubles();
+				double[] laty = l.at("y").asDoubles();
 
 
 				double[] latxComp = new double[nTime];
@@ -1011,17 +1030,15 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 						latxComp[t]=latx[t-emptySlot];
 						latyComp[t]=laty[t-emptySlot];
 					}
-
 				}
-
-
-
-
-			} catch (RSrvException e) {
+			} catch (REngineException e) {
 				if(e.toString().equals("unhandled type: 23")){
 				}else{
 					e.printStackTrace();
 				}
+			} catch (REXPMismatchException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 
 			return latyComp;
@@ -1029,7 +1046,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[] getLowess(double x[], double[] y, int nTime, Rconnection re, double f){
+	static double[] getLowess(double x[], double[] y, int nTime, RConnection re, double f){
 		int t;
 		int emptySlot=0;
 		double[] latyComp = new double[nTime];
@@ -1072,8 +1089,8 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 				l = re.eval("lowess(x=t, y=xpos, f="+f+")").asList();
 
 
-				double[] latx = l.at("x").asDoubleArray();
-				double[] laty = l.at("y").asDoubleArray();
+				double[] latx = l.at("x").asDoubles();
+				double[] laty = l.at("y").asDoubles();
 
 
 				double[] latxComp = new double[nTime];
@@ -1095,11 +1112,17 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 
 
-			} catch (RSrvException e) {
+			} catch (RserveException e) {
 				if(e.toString().equals("unhandled type: 23")){
 				}else{
 					e.printStackTrace();
 				}
+			} catch (REngineException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (REXPMismatchException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 
 			return latyComp;
@@ -1107,7 +1130,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[] getSpline_Vel(double x[], double[] y, int nTime, Rconnection re){
+	static double[] getSpline_Vel(double x[], double[] y, int nTime, RConnection re){
 		int t;
 		int emptySlot=0;
 		double[] latyComp=new double[nTime];
@@ -1159,8 +1182,8 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 			RList l = new RList();
 			l = re.eval("predict(smooth.spline(x=t,y=xpos), x=predictAt, deriv=1)").asList();
 
-			double[] latx = l.at("x").asDoubleArray();
-			double[] laty = l.at("y").asDoubleArray();
+			double[] latx = l.at("x").asDoubles();
+			double[] laty = l.at("y").asDoubles();
 
 
 
@@ -1181,18 +1204,24 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 			}
 
-		} catch (RSrvException e) {
+		} catch (RserveException e) {
 			if(e.toString().equals("unhandled type: 23")){
 			}else{
 				e.printStackTrace();
 			}
+		} catch (REngineException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (REXPMismatchException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 
 		return latyComp;
 	}
 
 
-	static double[][] getSpline_txyz (double[] tStamps, double pos[][], int nTime, int nKTpairs, Rconnection re){
+	static double[][] getSpline_txyz (double[] tStamps, double pos[][], int nTime, int nKTpairs, RConnection re){
 
 		double[][] splinedPos = new double[nTime*nKTpairs*2][3];
 		double[] ktPosOverT = new double[nTime];
@@ -1218,7 +1247,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[] getSpline_ty(double[] tStamps, double y[], int nTime, int nKTpairs, Rconnection re){
+	static double[] getSpline_ty(double[] tStamps, double y[], int nTime, int nKTpairs, RConnection re){
 		double[] splinedY = new double[nTime*nKTpairs*2];
 		double[] yOverT = new double[nTime];
 		double[] tStampsOverT = new double[nTime];
@@ -1243,7 +1272,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 		return splinedY;
 	}
 
-	static double[] getLowess_ty(double[] tStamps, double y[], int nTime, int nKTpairs, Rconnection re, double f){
+	static double[] getLowess_ty(double[] tStamps, double y[], int nTime, int nKTpairs, RConnection re, double f){
 		double[] lowessedY = new double[nTime*nKTpairs*2];
 		double[] yOverT = new double[nTime];
 		double[] tStampsOverT = new double[nTime];
@@ -1270,7 +1299,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 
 
-	static double[][] getSplinedVel_txyz (double[] tStamps, double pos[][], int nTime, int nKTpairs, Rconnection re){
+	static double[][] getSplinedVel_txyz (double[] tStamps, double pos[][], int nTime, int nKTpairs, RConnection re){
 
 		double[][] splinedPos = new double[nTime*nKTpairs*2][3];
 		double[] ktPosOverT = new double[nTime];
@@ -1296,7 +1325,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[][] getLowess_txyz(double[] tStamps, double pos[][], int nTime, int nKTpairs, Rconnection re, double f){
+	static double[][] getLowess_txyz(double[] tStamps, double pos[][], int nTime, int nKTpairs, RConnection re, double f){
 		double[][] lowessedPos = new double[nTime*nKTpairs*2][3];
 		double[] posOverT = new double[nTime];
 		double[] tStampsOverT = new double[nTime];
@@ -1322,7 +1351,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[][] getRunningAverage_txyz(double[] tStamps, double pos[][], int nTime, int nKTpairs, Rconnection re, double tWind){
+	static double[][] getRunningAverage_txyz(double[] tStamps, double pos[][], int nTime, int nKTpairs, RConnection re, double tWind){
 		double[][] averagedPos = new double[nTime*nKTpairs*2][3];
 
 		int i,j,t;
@@ -1358,7 +1387,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[] getSplinedVel_ty(double[] tStamps, double y[], int nTime, int nKTpairs, Rconnection re){
+	static double[] getSplinedVel_ty(double[] tStamps, double y[], int nTime, int nKTpairs, RConnection re){
 		double[] splinedY = new double[nTime*nKTpairs*2];
 		double[] yOverT = new double[nTime];
 		double[] tStampsOverT = new double[nTime];
@@ -1664,7 +1693,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 	}
 
 
-	static double[] getPredicted(double[] x, double[] y, int nTime, double[] predictTime, Rconnection re){
+	static double[] getPredicted(double[] x, double[] y, int nTime, double[] predictTime, RConnection re){
 		int t;
 		int emptySlot=0;
 
@@ -1691,25 +1720,32 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 				emptySlotBln[t]=true;
 			}
 		}
-
+		double[] laty = null;
 		try{
 			re.assign("t", xx);
 			re.assign("xpos", yy);
 			re.assign("predictTime", predictTime);
 			RList l = new RList();
 			l = re.eval("predict(smooth.spline(x=t,y=xpos),x=predictTime)").asList();
-			double[] laty = l.at("y").asDoubleArray();
-			return laty;
+			laty = l.at("y").asDoubles();
+			//return laty;
 
-		}catch (RSrvException e) {
+		}catch (RserveException e) {
 			e.printStackTrace();
 			return null;
+		} catch (REngineException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (REXPMismatchException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
+		return laty;
 	}
 
 
 
-	static double[] getPredicted_ty(double[] tStamps, double[] y, int nTime, int nKTpairs, double[] predictTime, Rconnection re) {
+	static double[] getPredicted_ty(double[] tStamps, double[] y, int nTime, int nKTpairs, double[] predictTime, RConnection re) {
 		double[] predictedY = new double[predictTime.length*nKTpairs*2];
 		double[] yOverT = new double[nTime];
 		double[] tStampsOverT = new double[nTime];
@@ -1733,7 +1769,7 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 	}
 
-	static double[][] getPredicted_txyz(double[] tStamps, double[][] pos, int nTime, int nKTpairs, double[] predictTime, Rconnection re) {
+	static double[][] getPredicted_txyz(double[] tStamps, double[][] pos, int nTime, int nKTpairs, double[] predictTime, RConnection re) {
 		double[][] predictedPos = new double[predictTime.length*nKTpairs*2][3];
 		double[] ktPosOverT = new double[nTime];
 		double[] tStampsOverT = new double[nTime];
@@ -2259,10 +2295,10 @@ public class KTAnalyzerDistribute extends WindowAdapter implements ActionListene
 
 		double[][] splinedPos = new double[nTime*nKTpairs*2][3];
 		//Rengine re = new Rengine(new String[]{"--no-save"}, false, null);
-		Rconnection re = null;
+		RConnection re = null;
 		try{
-			re=new Rconnection();
-		} catch (RSrvException ee) {
+			re=new RConnection();
+		} catch (RserveException ee) {
 			if(ee.toString().equals("unhandled type: 23")){
 			}else{
 				ee.printStackTrace();
