@@ -1,0 +1,10 @@
+/bin
+*.class
+*.project
+*.classpath
+*.settings/
+*.DS_Store
+
+tags
+.pydevproject
+src/test/*
